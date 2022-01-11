@@ -1,0 +1,33 @@
+ METHOD clienteset_get_entityset.
+    "FILTRO DE CAMPOS - modo nutela
+    DATA(ls_where) = io_tech_request_context->get_osql_where_clause_convert( ).
+    DATA(ls_where2) = io_tech_request_context->get_osql_where_clause( ).
+    "SELEÇÃO DE CAMPOS
+    DATA(lt_select) = io_tech_request_context->get_select_with_mandtry_fields( ).
+    DATA(lt_select2) = io_tech_request_context->get_select( ).
+*-------- Modo raiz (obs melhor fazer pelo modo nutela aqui só estamos fazendo pra ter conhecimento)----
+    DATA:lr_nome TYPE RANGE OF ztab_clientes-nome.
+
+    LOOP AT it_filter_select_options REFERENCE INTO DATA(lv_filter).
+      CASE lv_filter->property.
+        WHEN 'Nome'.
+
+          LOOP AT lv_filter->select_options REFERENCE INTO DATA(lv_options).
+
+            APPEND INITIAL LINE TO lr_nome REFERENCE INTO DATA(lv_nome).
+
+            MOVE-CORRESPONDING lv_options->* TO lv_nome->*.
+
+          ENDLOOP.
+        WHEN OTHERS.
+      ENDCASE.
+    ENDLOOP.
+*-------------------------------------------------------------------
+    SELECT (lt_select)
+           FROM ztab_clientes
+           INTO CORRESPONDING FIELDS OF TABLE et_entityset
+*           WHERE (ls_where). (modo nutela)
+           WHERE nome IN lr_nome."(modo raiz)
+
+
+  ENDMETHOD.
