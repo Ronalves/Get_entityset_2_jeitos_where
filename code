@@ -1,33 +1,53 @@
- METHOD clienteset_get_entityset.
+  METHOD clienteset_get_entityset.
     "FILTRO DE CAMPOS - modo nutela
     DATA(ls_where) = io_tech_request_context->get_osql_where_clause_convert( ).
     DATA(ls_where2) = io_tech_request_context->get_osql_where_clause( ).
     "SELEÇÃO DE CAMPOS
     DATA(lt_select) = io_tech_request_context->get_select_with_mandtry_fields( ).
     DATA(lt_select2) = io_tech_request_context->get_select( ).
-*-------- Modo raiz (obs melhor fazer pelo modo nutela aqui só estamos fazendo pra ter conhecimento)----
-    DATA:lr_nome TYPE RANGE OF ztab_clientes-nome.
+    "ORDENAÇÃO DE CAMPOS
+    DATA:lv_db_orderby TYPE string.
+    DATA(lt_orderby) = io_tech_request_context->get_orderby( ).
 
-    LOOP AT it_filter_select_options REFERENCE INTO DATA(lv_filter).
-      CASE lv_filter->property.
-        WHEN 'Nome'.
+    LOOP AT lt_orderby REFERENCE INTO DATA(ls_orderby).
 
-          LOOP AT lv_filter->select_options REFERENCE INTO DATA(lv_options).
+      IF ls_orderby->order EQ 'desc'.
+        DATA(lv_sort_order) = 'DESCENDING'.
+      ELSE.
+        lv_sort_order = 'ASCENDING'.
+      ENDIF.
 
-            APPEND INITIAL LINE TO lr_nome REFERENCE INTO DATA(lv_nome).
+      CONCATENATE lv_db_orderby
+      ls_orderby->property
+      lv_sort_order
+      INTO lv_db_orderby SEPARATED BY space.
 
-            MOVE-CORRESPONDING lv_options->* TO lv_nome->*.
-
-          ENDLOOP.
-        WHEN OTHERS.
-      ENDCASE.
     ENDLOOP.
-*-------------------------------------------------------------------
-    SELECT (lt_select)
-           FROM ztab_clientes
-           INTO CORRESPONDING FIELDS OF TABLE et_entityset
-*           WHERE (ls_where). (modo nutela)
-           WHERE nome IN lr_nome."(modo raiz)
 
+    "CONTAGEM
+    IF io_tech_request_context->has_count( ) EQ abap_true.
+      SELECT COUNT(*)
+                  FROM ztab_clientes
+                  INTO @DATA(lv_count)
+                  WHERE (ls_where).
+
+      es_response_context-count = lv_count.
+
+    ELSE.
+
+      DATA(lv_up_to) = is_paging-top + is_paging-skip.
+
+      SELECT (lt_select)
+             FROM ztab_clientes
+             UP TO lv_up_to ROWS
+             INTO CORRESPONDING FIELDS OF TABLE et_entityset
+             WHERE (ls_where)
+             ORDER BY id.
+*           ORDER BY (lv_db_orderby).
+
+      IF is_paging-skip > 0.
+        DELETE et_entityset FROM 1 TO is_paging-skip.
+      ENDIF.
+    ENDIF.
 
   ENDMETHOD.
